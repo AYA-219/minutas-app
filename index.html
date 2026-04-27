@@ -140,6 +140,17 @@ a{color:var(--blue);text-decoration:none}
 /* ADD TASK BTN */
 .add-task-btn{display:flex;align-items:center;justify-content:center;gap:8px;border:1.5px dashed var(--blue);border-radius:var(--r-sm);padding:11px;color:var(--blue);font-size:14px;font-weight:600;cursor:pointer;width:100%;background:none;margin-top:4px}
 
+/* PAGES GRID */
+.pages-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.page-card{background:var(--sur);border-radius:var(--r-sm);border:.5px solid var(--bdr);overflow:hidden;position:relative}
+.page-thumb{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:#eee}
+.page-footer{display:flex;justify-content:space-between;align-items:center;padding:5px 8px;font-size:12px;font-weight:600;color:var(--blue)}
+.page-del{font-size:16px;color:var(--red);cursor:pointer;padding:2px 0;line-height:1}
+.page-add-card{border-radius:var(--r-sm);border:1.5px dashed var(--bdr);aspect-ratio:3/4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;color:var(--blue);background:var(--sur)}
+.page-add-card:active{opacity:.7}
+.page-add-icon{font-size:26px;line-height:1}
+.page-add-label{font-size:11px;font-weight:600}
+
 /* TIP */
 .tip{background:#E3F2FD;border-radius:var(--r-sm);padding:10px 14px;margin-bottom:12px;font-size:13px;color:#1565C0;line-height:1.5}
 .tip b{font-weight:600}
@@ -222,52 +233,77 @@ function parseOCR(raw) {
   const RESP_RE = /\b([A-ZÁÉÍÓÚÑ]{2,5})\s*$/u;
 
   function detectCb(line) {
-    // ── Checkbox explícito: pintado (ejecutado)
-    if (/^[■●▪▸#@\*•]\s*/u.test(line))
-      return {ok:true,done:true,  c:line.replace(/^[■●▪▸#@\*•]\s*/u,'').trim()};
+    // ── 1. Checkbox Unicode explícito ──────────────────────────────────
+    if (/^[■●▪▸]\s*/u.test(line))
+      return {ok:true,done:true,  c:line.replace(/^[■●▪▸]\s*/u,'').trim()};
     if (/^\[[Xx✓✔]\]\s*/.test(line))
       return {ok:true,done:true,  c:line.replace(/^\[[Xx✓✔]\]\s*/,'').trim()};
-
-    // ── Checkbox explícito: vacío (pendiente)
     if (/^[□○◻☐]\s*/u.test(line))
       return {ok:true,done:false, c:line.replace(/^[□○◻☐]\s*/u,'').trim()};
     if (/^\[\s*\]\s*/.test(line))
       return {ok:true,done:false, c:line.replace(/^\[\s*\]\s*/,'').trim()};
 
-    // ── Fallback inteligente: OCR no reconoció el checkbox
-    // Detectar por patrón de contenido: línea con responsable + (fecha o dos puntos)
-    // Ej: "CALZEROS PARA 2C: indicar requisitos – 15/05 – MEL"
+    // ── 2. ESTRATEGIA PRINCIPAL: detectar por "PALABRA:" ──────────────
+    // El formato de esta minuta es siempre: [checkbox] TEMA: descripción — RESP
+    // El checkbox pintado a mano NUNCA produce el char Unicode exacto.
+    // La firma confiable es "PALABRA(S) EN MAYÚSCULAS seguidas de ':'".
+    // Solo se activa después de las 2 primeras líneas de encabezado (hc >= 2).
+    if (hc >= 2) {
+      // Permite prefijo de hasta 4 chars (el checkbox mal leído) + TEMA:
+      const TOPIC_RE = /^(.{0,4}?)([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9\s\.\-\/ÑÁÉÍÓÚ]{0,35}):/u;
+      const tm = TOPIC_RE.exec(line);
+      if (tm) {
+        const prefix = tm[1] || '';
+        // ■ pintado → OCR lo lee como carácter "oscuro/macizo": m,n,H,B,W,w,#,@,|
+        // □ vacío  → OCR lo lee como carácter "hueco": o,O,0,D,U,Q,C
+        const done = /[■●▪mMnNHBWw#@|]/.test(prefix);
+        // Contenido limpio: quitar el prefijo (checkbox basura) y el '—' final
+        const content = line.replace(/^.{0,4}?(?=[A-ZÁÉÍÓÚÑ])/u,'').trim();
+        return {ok:true, done, c:content};
+      }
+    }
+
+    // ── 3. Fallback: checkbox mal leído + texto en mayúsculas ──────────
+    // Para cuando el checkbox se lee como char suelto SIN seguir TEMA:
+    if (/^[mMnNHBWw]\s+[A-ZÁÉÍÓÚÑ]/u.test(line))
+      return {ok:true,done:true,  c:line.replace(/^[mMnNHBWw]\s+/,'').trim()};
+    if (/^[oO0DUQCGdugq]\s+[A-ZÁÉÍÓÚÑ]/u.test(line))
+      return {ok:true,done:false, c:line.replace(/^[oO0DUQCGdugq]\s+/,'').trim()};
+
+    // ── 4. Bullet / lista numerada ──────────────────────────────────────
+    if (/^[-–—\*]\s+\S/.test(line))
+      return {ok:true,done:false, c:line.replace(/^[-–—\*]\s+/,'').trim()};
+    if (/^\d{1,2}[.):\-]\s+\S/.test(line))
+      return {ok:true,done:false, c:line.replace(/^\d{1,2}[.):\-]\s+/,'').trim()};
+
+    // ── 5. Último recurso: inicia en mayús + tiene dos puntos + tiene responsable
     const hasResp = RESP_RE.test(line);
-    const hasDate = DATE_RE.test(line);
     const hasColon = line.includes(':');
     const startsUpper = /^[A-ZÁÉÍÓÚÑ\s]{4,}/u.test(line);
-    const shortPrefix = /^[A-Za-z0-9]{1,3}\s+[A-ZÁÉÍÓÚÑ]/.test(line); // "B CALZEROS..." → B es el checkbox mal leído
-
-    // Quitar posible prefijo basura (1-3 chars) que sea el checkbox mal interpretado
+    const shortPrefix = /^[A-Za-z0-9]{1,3}\s+[A-ZÁÉÍÓÚÑ]/.test(line);
     let content = line;
     if (shortPrefix) content = line.replace(/^[A-Za-z0-9]{1,3}\s+/, '').trim();
-
-    if (hasResp && hasDate)
-      return {ok:true, done:false, c:content};
-    if (hasResp && hasColon && startsUpper)
-      return {ok:true, done:false, c:content};
-    if (hasResp && hasColon && shortPrefix)
-      return {ok:true, done:false, c:content};
+    if (hasResp && hasColon && startsUpper) return {ok:true, done:false, c:content};
+    if (hasResp && hasColon && shortPrefix) return {ok:true, done:false, c:content};
+    if (hasResp && DATE_RE.test(line))     return {ok:true, done:false, c:content};
 
     return {ok:false};
   }
 
   function parseTarea(c,done) {
     let rest=c, titulo='', desc='', fecha='', resp='';
+    // Extraer responsable al final (2-5 mayúsculas)
     const rm = rest.match(RESP_RE);
-    if (rm) { resp=rm[1]; rest=rest.replace(RESP_RE,'').replace(/\s*[-–—]\s*$/,'').trim(); }
+    if (rm) { resp=rm[1]; rest=rest.replace(RESP_RE,'').replace(/\s*[-–—_]+\s*$/,'').trim(); }
+    // Extraer fecha
     const dm = rest.match(DATE_RE);
-    if (dm) { fecha=dm[1]; rest=rest.replace(DATE_RE,'').replace(/\s*[-–—]\s*/g,' ').trim(); }
+    if (dm) { fecha=dm[1]; rest=rest.replace(DATE_RE,'').replace(/\s*[-–—]+\s*/g,' ').trim(); }
+    // Separar TÍTULO (antes del primer ':') de descripción
     const ci = rest.indexOf(':');
-    if (ci>0 && ci<rest.length*.65) {
+    if (ci>0 && ci<rest.length*.7) {
       titulo=rest.slice(0,ci).trim().toUpperCase();
-      desc=rest.slice(ci+1).trim();
-    } else { titulo=rest.toUpperCase(); }
+      desc=rest.slice(ci+1).replace(/\s*[-–—_]+\s*$/,'').trim(); // limpiar '—' final
+    } else { titulo=rest.replace(/\s*[-–—_]+\s*$/,'').trim().toUpperCase(); }
     if (!titulo) titulo=c.toUpperCase();
     return {id:uid(),titulo,desc,fecha,resp,done};
   }
@@ -345,9 +381,10 @@ function fmtSubject(m){ return `MINUTA | ${m.proyecto.toUpperCase()} | ${m.tipoR
    STATE
 ══════════════════════════════════════════ */
 const S = {
-  screen:'home', imgSrc:null,
+  screen:'home', imgPages:[],
   minuta:null, editMinuta:null,
   selContacts:new Set(),
+  ocrRawText: null,
 };
 
 /* ══════════════════════════════════════════
@@ -401,35 +438,66 @@ function screenHome(){
 
 /* ── CAMERA ───────────────────────────── */
 function screenCamera(){
-  const hasImg = !!S.imgSrc;
+  const pages = S.imgPages;
+  const n = pages.length;
+  const canAdd = n < 5;
+
+  const gridItems = pages.map((src,i) => `
+    <div class="page-card">
+      <img class="page-thumb" src="${src}" alt="Página ${i+1}">
+      <div class="page-footer">
+        <span>Pág. ${i+1}</span>
+        <span class="page-del" onclick="delPage(${i})">✕</span>
+      </div>
+    </div>`).join('');
+
+  const addCard = canAdd ? `
+    <div class="page-add-card" onclick="addPage()">
+      <span class="page-add-icon">+</span>
+      <span class="page-add-label">Pág. ${n+1}</span>
+    </div>` : '';
+
   return `<nav class="nav">
-    <button class="nav-back" onclick="S.imgSrc=null;go('home')">‹</button>
+    <button class="nav-back" onclick="S.imgPages=[];go('home')">‹</button>
     <span class="nav-title">Nueva Minuta</span>
+    ${n>0?`<span class="nav-action" style="font-size:13px">${n}/5 pág.</span>`:''}
   </nav>
   <div class="screen">
-    <div class="tip"><b>Consejos:</b> Buena iluminación, hoja plana, foto perpendicular. Letra imprenta mejora el reconocimiento.</div>
-    ${hasImg ? `
-      <div class="capture-area" style="cursor:default;border-style:solid;border-color:var(--blue);min-height:auto">
-        <img class="capture-img" src="${S.imgSrc}" alt="Minuta fotografiada">
+    <div class="tip"><b>Consejos:</b> Buena iluminación, hoja plana, foto perpendicular. Podés agregar hasta 5 páginas.</div>
+
+    ${n === 0 ? `
+      <div class="capture-area" onclick="$('inp-cam').click()">
+        <div class="capture-icon">📷</div>
+        <div class="capture-hint">Tocá para fotografiar la primera página</div>
       </div>
+      <button class="btn btn-primary" onclick="$('inp-cam').click()">📷 &nbsp; Tomar foto</button>
+      <button class="btn btn-secondary btn-nobottom" onclick="$('inp-gal').click()">🖼 &nbsp; Elegir de galería</button>
+    ` : `
+      <div class="pages-grid">${gridItems}${addCard}</div>
+
       <div class="card" id="ocr-box" style="display:none">
-        <div class="ocr-title">Reconociendo texto en el dispositivo…</div>
-        <div class="ocr-sub">Sin conexión requerida — proceso local</div>
+        <div class="ocr-title" id="ocr-title">Reconociendo texto…</div>
+        <div class="ocr-sub">${n>1?`Procesando ${n} páginas — sin conexión requerida`:'Sin conexión requerida — proceso local'}</div>
         <div class="ocr-bar"><div class="ocr-fill" id="ocr-fill"></div></div>
         <div class="ocr-pct" id="ocr-pct">0%</div>
       </div>
-      <button class="btn btn-primary" id="btn-proc" onclick="startOCR()">🔍 &nbsp; Reconocer texto</button>
+
+      <button class="btn btn-primary" id="btn-proc" onclick="startOCR()">
+        🔍 &nbsp; Reconocer texto${n>1?' ('+n+' páginas)':''}
+      </button>
       <button class="btn btn-secondary" onclick="skipOCR()">✏️ &nbsp; Ingresar manualmente</button>
-      <button class="btn btn-secondary btn-nobottom" onclick="S.imgSrc=null;render()">↩ &nbsp; Cambiar foto</button>
-    ` : `
-      <div class="capture-area" onclick="$('inp-cam').click()">
-        <div class="capture-icon">📷</div>
-        <div class="capture-hint">Tocá para fotografiar la minuta</div>
-      </div>
-      <button class="btn btn-primary" onclick="$('inp-cam').click()">📷 &nbsp; Tomar foto</button>
-      <button class="btn btn-secondary btn-nobottom" onclick="$('inp-gal').click()">🖼 &nbsp; Elegir de la galería</button>
     `}
   </div>`;
+}
+
+function addPage(){
+  const pref = S._addMode || 'cam';
+  if(pref==='gal') $('inp-gal').click(); else $('inp-cam').click();
+}
+
+function delPage(idx){
+  S.imgPages.splice(idx,1);
+  render();
 }
 
 /* ── REVIEW ───────────────────────────── */
@@ -513,6 +581,20 @@ function screenReview(){
       </div>
       <button class="add-task-btn" onclick="addTask()">＋ &nbsp; Agregar tarea</button>
     </div>
+
+    ${S.ocrRawText != null ? `
+    <div class="card" id="ocr-debug-card">
+      <div class="sec-hdr" style="cursor:pointer" onclick="toggleOcrDebug()">
+        <div class="slabel" style="margin:0">🔍 Texto reconocido por OCR</div>
+        <span id="ocr-debug-toggle" style="font-size:13px;color:var(--blue);font-weight:600">${m.tareas.length===0?'▼ Ver':'▶ Ver'}</span>
+      </div>
+      <div id="ocr-debug-body" style="display:${m.tareas.length===0?'block':'none'}">
+        ${m.tareas.length===0?`<div class="tip" style="margin-bottom:10px"><b>Sin tareas detectadas.</b> Revisá el texto reconocido abajo, corregilo y tocá "Re-detectar".</div>`:''}
+        <textarea id="ocr-raw-txt" style="width:100%;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r-sm);padding:10px;font-size:12px;font-family:monospace;line-height:1.5;min-height:140px;outline:none;resize:vertical">${esc(S.ocrRawText)}</textarea>
+        <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="reparseOCR()">↺ &nbsp; Re-detectar tareas</button>
+      </div>
+    </div>
+    ` : ''}
 
     <button class="btn btn-primary" onclick="saveReview()">Guardar y enviar →</button>
     <div style="height:20px"></div>
@@ -633,7 +715,10 @@ function openMinuta(id){
 function loadImg(file){
   if(!file) return;
   const r=new FileReader();
-  r.onload=e=>{ S.imgSrc=e.target.result; render(); };
+  r.onload=e=>{
+    if(S.imgPages.length < 5) S.imgPages.push(e.target.result);
+    render();
+  };
   r.readAsDataURL(file);
 }
 
@@ -642,21 +727,33 @@ async function startOCR(){
   if(procBtn) procBtn.style.display='none';
   if(ocrBox)  ocrBox.style.display='block';
 
+  const pages = S.imgPages;
+  const allTexts = [];
+  let currentPage = 0;
+
   try{
-    const worker=await Tesseract.createWorker('spa',1,{
-      logger: m=>{
+    const worker = await Tesseract.createWorker('spa', 1, {
+      logger: m => {
         if(m.status==='recognizing text'){
-          const pct=Math.round(m.progress*100);
-          const f=$('ocr-fill'), p=$('ocr-pct');
-          if(f) f.style.width=pct+'%';
-          if(p) p.textContent=pct+'%';
+          const overallPct = Math.round((currentPage + m.progress) / pages.length * 100);
+          const f=$('ocr-fill'), p=$('ocr-pct'), t=$('ocr-title');
+          if(f) f.style.width=overallPct+'%';
+          if(p) p.textContent=overallPct+'%';
+          if(t && pages.length>1) t.textContent=`Procesando página ${currentPage+1} de ${pages.length}…`;
         }
       }
     });
-    const {data:{text}}=await worker.recognize(S.imgSrc);
+
+    for(currentPage=0; currentPage<pages.length; currentPage++){
+      const {data:{text}} = await worker.recognize(pages[currentPage]);
+      allTexts.push(text.trim());
+    }
+
     await worker.terminate();
-    S.editMinuta=parseOCR(text);
-    S.editMinuta.img=S.imgSrc;
+    const combined = allTexts.join('\n\n');
+    S.ocrRawText = combined;
+    S.editMinuta = parseOCR(combined);
+    S.editMinuta.img = pages[0] || null;
     go('review');
   }catch(err){
     console.error('OCR error:',err);
@@ -667,9 +764,27 @@ async function startOCR(){
 }
 
 function skipOCR(){
+  S.ocrRawText = null;
   S.editMinuta=mkMinuta();
   S.editMinuta.img=S.imgSrc;
   go('review');
+}
+
+function toggleOcrDebug(){
+  const body=$('ocr-debug-body'), tog=$('ocr-debug-toggle');
+  if(!body) return;
+  const visible = body.style.display!=='none';
+  body.style.display = visible?'none':'block';
+  if(tog) tog.textContent = visible?'▶ Ver':'▼ Ver';
+}
+
+function reparseOCR(){
+  const raw = $('ocr-raw-txt')?.value ?? S.ocrRawText ?? '';
+  S.ocrRawText = raw;
+  const img = S.editMinuta?.img;
+  S.editMinuta = parseOCR(raw);
+  S.editMinuta.img = img;
+  render();
 }
 
 /* ══════════════════════════════════════════
