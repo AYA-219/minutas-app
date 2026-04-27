@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1A237E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Minutas">
+<link rel="manifest" href="manifest.json">
+<title>APP MINUTAS — Albera &amp; Asociados</title>
+<style>
+:root{
+  --blue:#1A237E;--blue-dk:#0D1457;--blue-lt:#E8EAF6;
+  --amber:#FF6F00;--amber-lt:#FFF3E0;
+  --green:#2E7D32;--green-lt:#E8F5E9;
+  --red:#C62828;--wa:#25D366;
+  --bg:#F5F5F5;--sur:#FFFFFF;
+  --t1:#212121;--t2:#757575;--t3:#BDBDBD;
+  --bdr:#E0E0E0;--r:12px;--r-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--t1);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;max-width:480px;margin:0 auto;min-height:100dvh}
+button{cursor:pointer;border:none;background:none;font:inherit;color:inherit}
+input,textarea,select{font:inherit;color:var(--t1)}
+a{color:var(--blue);text-decoration:none}
+
+/* NAV */
+.nav{background:var(--blue);color:#fff;display:flex;align-items:center;padding:12px 16px;gap:10px;position:sticky;top:0;z-index:100;padding-top:max(12px,env(safe-area-inset-top))}
+.nav-back{color:rgba(255,255,255,.85);font-size:24px;line-height:1;padding-right:6px;flex-shrink:0}
+.nav-title{flex:1;font-size:17px;font-weight:600;letter-spacing:.2px}
+.nav-action{color:rgba(255,255,255,.9);font-size:15px;padding:4px 0 4px 6px;white-space:nowrap}
+
+/* LAYOUT */
+.screen{padding:12px 12px calc(76px + env(safe-area-inset-bottom))}
+.card{background:var(--sur);border-radius:var(--r);border:.5px solid var(--bdr);padding:14px;margin-bottom:12px}
+.slabel{font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+.row{display:flex;gap:8px}
+
+/* FIELD */
+.field{margin-bottom:10px}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.field input,.field textarea{width:100%;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r-sm);padding:9px 12px;font-size:14px;outline:none;-webkit-appearance:none}
+.field input:focus,.field textarea:focus{border-color:var(--blue)}
+.field textarea{resize:none;line-height:1.4;min-height:52px}
+
+/* BUTTONS */
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;border-radius:var(--r);padding:14px 20px;font-size:15px;font-weight:600;cursor:pointer;border:none;width:100%;margin-bottom:10px;-webkit-appearance:none}
+.btn:active{opacity:.78}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-secondary{background:var(--sur);color:var(--blue);border:1.5px solid var(--blue)}
+.btn-email{background:#E3F2FD;color:#0D47A1;border:1.5px solid #1565C0}
+.btn-wa{background:#E8F5E9;color:#1B5E20;border:1.5px solid #388E3C}
+.btn-pdf{background:var(--amber-lt);color:#E65100;border:1.5px solid var(--amber)}
+.btn-danger{background:#FFEBEE;color:var(--red);border:1.5px solid var(--red)}
+.btn-sm{padding:9px 14px;font-size:13px;border-radius:var(--r-sm)}
+.btn-nobottom{margin-bottom:0}
+
+/* FAB */
+.fab{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));right:20px;width:58px;height:58px;border-radius:50%;background:var(--blue);color:#fff;font-size:30px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(26,35,126,.45);border:none;cursor:pointer;z-index:90;line-height:1}
+
+/* MINUTA CARD */
+.m-card{background:var(--sur);border-radius:var(--r);border:.5px solid var(--bdr);padding:13px 12px 11px 16px;margin-bottom:10px;position:relative;overflow:hidden;cursor:pointer;display:flex;align-items:center;gap:8px;-webkit-tap-highlight-color:rgba(0,0,0,.05)}
+.m-card:active{opacity:.8}
+.m-bar{position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--green)}
+.m-body{flex:1;min-width:0}
+.m-proyecto{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-tipo{font-size:12px;color:var(--blue);font-weight:500;margin:2px 0}
+.m-footer{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;align-items:center}
+.badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:8px}
+.badge-p{background:#FFF3E0;color:#E65100}
+.badge-d{background:var(--green-lt);color:var(--green)}
+.badge-n{background:var(--bg);color:var(--t2);border:.5px solid var(--bdr)}
+.m-date{font-size:11px;color:var(--t3);margin-left:auto}
+.m-arr{color:var(--t3);font-size:22px;flex-shrink:0}
+
+/* TASK ITEM */
+.task{border:.5px solid var(--bdr);border-radius:var(--r-sm);margin-bottom:8px;background:var(--sur);overflow:hidden}
+.task.done{background:#F9FBE7;border-color:#C5E1A5}
+.task-head{display:flex;align-items:center;gap:7px;padding:9px 10px}
+.task-cb{font-size:19px;flex-shrink:0;cursor:pointer;line-height:1}
+.task-cb.done{color:var(--green)}
+.task-cb.pend{color:var(--t3)}
+.task-num{font-size:12px;color:var(--t2);font-weight:600;flex-shrink:0;min-width:18px}
+.task-title-inp{flex:1;border:none;background:transparent;font-size:13px;font-weight:600;outline:none;color:var(--t1);min-width:0;padding:0}
+.task.done .task-title-inp{text-decoration:line-through;color:var(--t2)}
+.task-tags{display:flex;gap:4px;flex-shrink:0}
+.tag-date{font-size:10px;background:var(--amber-lt);color:var(--amber);padding:2px 5px;border-radius:4px;font-weight:600;white-space:nowrap}
+.tag-resp{font-size:10px;background:var(--blue-lt);color:var(--blue);padding:2px 6px;border-radius:4px;font-weight:600;letter-spacing:.5px}
+.task-del{color:var(--red);font-size:14px;padding:4px 2px;flex-shrink:0;cursor:pointer}
+.task-body{padding:0 10px 10px 34px;display:none}
+.task.expanded .task-body{display:block}
+.task-body .field{margin-bottom:6px}
+.task-body .field label{font-size:10px}
+.task-body .field input{font-size:13px;padding:7px 10px}
+.task-body .field textarea{font-size:13px;padding:7px 10px;min-height:44px}
+.task-expand{font-size:11px;color:var(--t3);padding:2px 4px;cursor:pointer;flex-shrink:0}
+
+/* CAPTURE AREA */
+.capture-area{background:var(--sur);border-radius:var(--r);border:2px dashed var(--bdr);min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;margin-bottom:12px;overflow:hidden;cursor:pointer}
+.capture-img{width:100%;max-height:300px;object-fit:contain;display:block}
+.capture-icon{font-size:52px;line-height:1}
+.capture-hint{font-size:13px;color:var(--t2);text-align:center;padding:0 24px}
+
+/* OCR PROGRESS */
+.ocr-box{text-align:center;padding:20px 16px}
+.ocr-title{font-size:15px;font-weight:600;margin-bottom:4px}
+.ocr-sub{font-size:13px;color:var(--t2);margin-bottom:14px}
+.ocr-bar{width:100%;height:8px;border-radius:4px;background:var(--bg);overflow:hidden;margin-bottom:6px}
+.ocr-fill{height:100%;background:var(--blue);border-radius:4px;transition:width .3s;width:0}
+.ocr-pct{font-size:13px;color:var(--t2)}
+
+/* SEND SUMMARY */
+.send-summary{background:var(--blue);border-radius:var(--r);padding:18px;margin-bottom:12px;color:#fff}
+.send-proy{font-size:17px;font-weight:700;margin-bottom:4px;letter-spacing:.2px}
+.send-meta{font-size:13px;opacity:.8;margin-bottom:10px}
+.send-badges{display:flex;gap:8px;flex-wrap:wrap}
+.send-badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:8px;background:rgba(255,255,255,.18);color:#fff}
+.send-badge-g{background:rgba(46,125,50,.35)}
+
+/* CONTACTS */
+.c-row{background:var(--sur);border:.5px solid var(--bdr);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.c-toggle{width:28px;height:28px;border-radius:50%;border:2px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;flex-shrink:0;color:#fff}
+.c-toggle.on{background:var(--green);border-color:var(--green)}
+.c-toggle.off{background:transparent;border-color:var(--bdr)}
+.c-info{flex:1;min-width:0}
+.c-name{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c-det{font-size:12px;color:var(--t2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c-acts{display:flex;gap:2px;flex-shrink:0}
+.c-btn{font-size:18px;padding:4px 6px;cursor:pointer}
+
+/* RECIPIENT ROW */
+.r-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border:.5px solid var(--bdr);border-radius:var(--r-sm);margin-bottom:6px;cursor:pointer;background:var(--sur);-webkit-tap-highlight-color:rgba(0,0,0,.04)}
+.r-row.sel{border-color:var(--blue);background:var(--blue-lt)}
+.r-check{width:22px;height:22px;border-radius:5px;border:2px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0;color:#fff}
+.r-row.sel .r-check{background:var(--blue);border-color:var(--blue)}
+.r-name{font-size:14px;font-weight:500;flex:1}
+.r-det{font-size:12px;color:var(--t2)}
+
+/* ADD TASK BTN */
+.add-task-btn{display:flex;align-items:center;justify-content:center;gap:8px;border:1.5px dashed var(--blue);border-radius:var(--r-sm);padding:11px;color:var(--blue);font-size:14px;font-weight:600;cursor:pointer;width:100%;background:none;margin-top:4px}
+
+/* TIP */
+.tip{background:#E3F2FD;border-radius:var(--r-sm);padding:10px 14px;margin-bottom:12px;font-size:13px;color:#1565C0;line-height:1.5}
+.tip b{font-weight:600}
+
+/* EMPTY */
+.empty{text-align:center;padding:52px 24px}
+.empty-icon{font-size:54px;margin-bottom:16px}
+.empty-title{font-size:19px;font-weight:600;margin-bottom:8px}
+.empty-text{font-size:14px;color:var(--t2);line-height:1.6}
+
+/* MODAL */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:flex-end}
+.modal-card{background:var(--sur);border-radius:20px 20px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom));width:100%;max-height:88dvh;overflow-y:auto}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:18px}
+.modal-actions{display:flex;gap:10px;margin-top:6px}
+.modal-actions .btn{flex:1;margin-bottom:0}
+
+/* SECTION HEADER ROW */
+.sec-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.sec-hdr .slabel{margin:0}
+
+/* PRINT */
+@media print{
+  .nav,.fab,.btn,.add-task-btn,.no-print,nav{display:none!important}
+  body{background:#fff;max-width:none;font-size:10.5pt;color:#000}
+  .screen{padding:0}
+  .card{border:1px solid #ccc;margin-bottom:10px;break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .task{border:1px solid #ccc;break-inside:avoid;margin-bottom:6px}
+  .task-body{display:block!important}
+  .send-summary{background:#1A237E!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .task-del,.task-expand,.c-acts{display:none!important}
+  .task-title-inp{font-size:11pt}
+  .field input,.field textarea{border:none;background:transparent;padding:0}
+  .badge,.tag-date,.tag-resp,.send-badge{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<input type="file" id="inp-cam" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="inp-gal" accept="image/*" style="display:none">
+<div id="modal-root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+'use strict';
+
+/* ══════════════════════════════════════════
+   STORAGE
+══════════════════════════════════════════ */
+const ld = (k,d) => { try{ return JSON.parse(localStorage.getItem(k))??d; }catch{ return d; } };
+const sv = (k,v) => localStorage.setItem(k, JSON.stringify(v));
+
+const DEF_CONTACTS = [
+  {id:'c0',nombre:'Gustavo Albera',email:'g.albera@alberayasociados.com',tel:'',on:true}
+];
+const DB = {
+  minutas:  { get:()=>ld('aa:m',[]),           set:v=>sv('aa:m',v) },
+  contacts: { get:()=>ld('aa:c',DEF_CONTACTS), set:v=>sv('aa:c',v) },
+};
+
+/* ══════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════ */
+const uid  = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const today= () => new Date().toLocaleDateString('es-AR');
+const esc  = s  => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const $    = id => document.getElementById(id);
+const el   = (tag,cls,html) => { const e=document.createElement(tag); if(cls)e.className=cls; if(html)e.innerHTML=html; return e; };
+
+/* ══════════════════════════════════════════
+   OCR PARSER
+══════════════════════════════════════════ */
+function parseOCR(raw) {
+  const lines = raw.split('\n').map(l=>l.trim()).filter(l=>l.length>1);
+  if (!lines.length) return mkMinuta();
+
+  const DATE_RE = /\b(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\b/;
+  const RESP_RE = /\b([A-ZÁÉÍÓÚÑ]{2,5})\s*$/u;
+
+  function detectCb(line) {
+    if (/^[■●▪#@]\s*/.test(line))         return {ok:true,done:true,  c:line.replace(/^[■●▪#@]\s*/,'').trim()};
+    if (/^\[[Xx✓✔]\]\s*/.test(line))       return {ok:true,done:true,  c:line.replace(/^\[[Xx✓✔]\]\s*/,'').trim()};
+    if (/^[□○◻☐0]\s+[A-Z]/.test(line))    return {ok:true,done:false, c:line.replace(/^[□○◻☐0]\s*/,'').trim()};
+    if (/^[□○◻☐]\s*/.test(line))          return {ok:true,done:false, c:line.replace(/^[□○◻☐]\s*/,'').trim()};
+    if (/^\[\s*\]\s*/.test(line))          return {ok:true,done:false, c:line.replace(/^\[\s*\]\s*/,'').trim()};
+    return {ok:false};
+  }
+
+  function parseTarea(c,done) {
+    let rest=c, titulo='', desc='', fecha='', resp='';
+    const rm = rest.match(RESP_RE);
+    if (rm) { resp=rm[1]; rest=rest.replace(RESP_RE,'').replace(/\s*[-–—]\s*$/,'').trim(); }
+    const dm = rest.match(DATE_RE);
+    if (dm) { fecha=dm[1]; rest=rest.replace(DATE_RE,'').replace(/\s*[-–—]\s*/g,' ').trim(); }
+    const ci = rest.indexOf(':');
+    if (ci>0 && ci<rest.length*.65) {
+      titulo=rest.slice(0,ci).trim().toUpperCase();
+      desc=rest.slice(ci+1).trim();
+    } else { titulo=rest.toUpperCase(); }
+    if (!titulo) titulo=c.toUpperCase();
+    return {id:uid(),titulo,desc,fecha,resp,done};
+  }
+
+  let proyecto='',tipoReunion='',fecha='',participantes=[],tareas=[];
+  let hc=0, inTasks=false;
+
+  for (const line of lines) {
+    const cb = detectCb(line);
+    if (cb.ok) { inTasks=true; tareas.push(parseTarea(cb.c,cb.done)); continue; }
+    if (inTasks) continue;
+    hc++;
+    if      (hc===1) { proyecto=line; }
+    else if (hc===2) {
+      const dm=line.match(DATE_RE);
+      if(dm){ fecha=dm[1]; tipoReunion=line.replace(DATE_RE,'').replace(/[-–—]/g,'').trim(); }
+      else tipoReunion=line;
+    } else {
+      if (/participantes|asistentes|presentes/i.test(line)) {
+        participantes=line.replace(/^[^:]+:\s*/,'').split(/[,;]/).map(p=>p.trim()).filter(Boolean);
+      } else if (line.includes(',')) {
+        const ps=line.split(',').map(p=>p.trim()).filter(Boolean);
+        if (ps.length>1) participantes=ps;
+      }
+    }
+  }
+  if (!fecha) fecha=today();
+  return {id:uid(),proyecto,tipoReunion,fecha,participantes,tareas,img:null,creadaEn:new Date().toISOString()};
+}
+
+function mkMinuta(){
+  return {id:uid(),proyecto:'',tipoReunion:'',fecha:today(),participantes:[],tareas:[],img:null,creadaEn:new Date().toISOString()};
+}
+function mkTarea(){
+  return {id:uid(),titulo:'',desc:'',fecha:'',resp:'',done:false};
+}
+
+/* ══════════════════════════════════════════
+   FORMAT / EXPORT
+══════════════════════════════════════════ */
+function fmtWA(m) {
+  const L=['*'+m.proyecto.toUpperCase()+'*',`${m.tipoReunion} — ${m.fecha}`];
+  if(m.participantes?.length) L.push('Participantes: '+m.participantes.join(', '));
+  L.push('','─'.repeat(36));
+  const pend=m.tareas.filter(t=>!t.done), done=m.tareas.filter(t=>t.done);
+  if(pend.length){ L.push('*PENDIENTES*'); pend.forEach((t,i)=>{
+    L.push(`${i+1}. □ *${t.titulo}*`);
+    if(t.desc) L.push('   '+t.desc);
+    const mt=[]; if(t.fecha)mt.push('📅 '+t.fecha); if(t.resp)mt.push('👤 '+t.resp);
+    if(mt.length) L.push('   '+mt.join('  '));
+  });}
+  if(done.length){ L.push('','*EJECUTADAS*'); done.forEach(t=>L.push('■ ~'+t.titulo+'~'+(t.resp?' — '+t.resp:''))); }
+  L.push('','─'.repeat(36),'_Minuta — Albera & Asociados_');
+  return L.join('\n');
+}
+
+function fmtEmail(m) {
+  const S='─'.repeat(48);
+  const L=[m.proyecto.toUpperCase(),S,'Reunión: '+m.tipoReunion,'Fecha: '+m.fecha];
+  if(m.participantes?.length) L.push('Participantes: '+m.participantes.join(', '));
+  L.push('','TAREAS:',S);
+  m.tareas.forEach((t,i)=>{
+    L.push('',(t.done?'■':'□')+'  '+(i+1)+'. '+t.titulo);
+    if(t.desc) L.push('     '+t.desc);
+    const mt=[]; if(t.fecha)mt.push('Fecha límite: '+t.fecha); if(t.resp)mt.push('Responsable: '+t.resp);
+    if(mt.length) L.push('     '+mt.join('  |  '));
+  });
+  L.push('',S,'Minuta — Albera & Asociados','g.albera@alberayasociados.com');
+  return L.join('\n');
+}
+
+function fmtSubject(m){ return `MINUTA | ${m.proyecto.toUpperCase()} | ${m.tipoReunion} ${m.fecha}`; }
+
+/* ══════════════════════════════════════════
+   STATE
+══════════════════════════════════════════ */
+const S = {
+  screen:'home', imgSrc:null,
+  minuta:null, editMinuta:null,
+  selContacts:new Set(),
+};
+
+/* ══════════════════════════════════════════
+   ROUTER
+══════════════════════════════════════════ */
+function go(screen){ S.screen=screen; render(); window.scrollTo(0,0); }
+
+/* ══════════════════════════════════════════
+   SCREENS
+══════════════════════════════════════════ */
+function render(){
+  $('app').innerHTML = ({
+    home:screenHome, camera:screenCamera,
+    review:screenReview, send:screenSend, contacts:screenContacts
+  }[S.screen] || screenHome)();
+  bindAll();
+}
+
+/* ── HOME ─────────────────────────────── */
+function screenHome(){
+  const ms = DB.minutas.get().slice().sort((a,b)=>b.creadaEn.localeCompare(a.creadaEn));
+  const cards = ms.length ? ms.map(m=>{
+    const pend=m.tareas.filter(t=>!t.done).length, total=m.tareas.length;
+    const d=new Date(m.creadaEn).toLocaleDateString('es-AR',{day:'2-digit',month:'short'});
+    return `<div class="m-card" onclick="openMinuta('${m.id}')">
+      <div class="m-bar"></div>
+      <div class="m-body">
+        <div class="m-proyecto">${esc(m.proyecto||'(Sin nombre)')}</div>
+        <div class="m-tipo">${esc(m.tipoReunion||'Reunión')} · ${esc(m.fecha)}</div>
+        <div class="m-footer">
+          <span class="badge badge-n">${total} tarea${total!==1?'s':''}</span>
+          ${pend>0?`<span class="badge badge-p">${pend} pendiente${pend!==1?'s':''}</span>`:total>0?`<span class="badge badge-d">✓ Completa</span>`:''}
+          <span class="m-date">${d}</span>
+        </div>
+      </div>
+      <span class="m-arr">›</span>
+    </div>`;
+  }).join('') : `<div class="empty">
+    <div class="empty-icon">📋</div>
+    <div class="empty-title">Sin minutas todavía</div>
+    <div class="empty-text">Tocá + para fotografiar<br>tu primera minuta escrita a mano.</div>
+  </div>`;
+
+  return `<nav class="nav">
+    <span class="nav-title">Minutas — A&amp;A</span>
+    <button class="nav-action" onclick="go('contacts')">👥 Equipo</button>
+  </nav>
+  <div class="screen">${cards}</div>
+  <button class="fab" onclick="go('camera')">+</button>`;
+}
+
+/* ── CAMERA ───────────────────────────── */
+function screenCamera(){
+  const hasImg = !!S.imgSrc;
+  return `<nav class="nav">
+    <button class="nav-back" onclick="S.imgSrc=null;go('home')">‹</button>
+    <span class="nav-title">Nueva Minuta</span>
+  </nav>
+  <div class="screen">
+    <div class="tip"><b>Consejos:</b> Buena iluminación, hoja plana, foto perpendicular. Letra imprenta mejora el reconocimiento.</div>
+    ${hasImg ? `
+      <div class="capture-area" style="cursor:default;border-style:solid;border-color:var(--blue);min-height:auto">
+        <img class="capture-img" src="${S.imgSrc}" alt="Minuta fotografiada">
+      </div>
+      <div class="card" id="ocr-box" style="display:none">
+        <div class="ocr-title">Reconociendo texto en el dispositivo…</div>
+        <div class="ocr-sub">Sin conexión requerida — proceso local</div>
+        <div class="ocr-bar"><div class="ocr-fill" id="ocr-fill"></div></div>
+        <div class="ocr-pct" id="ocr-pct">0%</div>
+      </div>
+      <button class="btn btn-primary" id="btn-proc" onclick="startOCR()">🔍 &nbsp; Reconocer texto</button>
+      <button class="btn btn-secondary" onclick="skipOCR()">✏️ &nbsp; Ingresar manualmente</button>
+      <button class="btn btn-secondary btn-nobottom" onclick="S.imgSrc=null;render()">↩ &nbsp; Cambiar foto</button>
+    ` : `
+      <div class="capture-area" onclick="$('inp-cam').click()">
+        <div class="capture-icon">📷</div>
+        <div class="capture-hint">Tocá para fotografiar la minuta</div>
+      </div>
+      <button class="btn btn-primary" onclick="$('inp-cam').click()">📷 &nbsp; Tomar foto</button>
+      <button class="btn btn-secondary btn-nobottom" onclick="$('inp-gal').click()">🖼 &nbsp; Elegir de la galería</button>
+    `}
+  </div>`;
+}
+
+/* ── REVIEW ───────────────────────────── */
+function screenReview(){
+  const m = S.editMinuta;
+  const parts = (m.participantes||[]).join(', ');
+  const pendN = m.tareas.filter(t=>!t.done).length;
+  const doneN = m.tareas.filter(t=>t.done).length;
+
+  function taskHTML(t,i){
+    return `<div class="task ${t.done?'done':''} expanded" id="task-${t.id}">
+      <div class="task-head">
+        <span class="task-cb ${t.done?'done':'pend'}" onclick="toggleTask('${t.id}')">${t.done?'■':'□'}</span>
+        <span class="task-num">${i+1}.</span>
+        <input class="task-title-inp" value="${esc(t.titulo)}" placeholder="TÍTULO DE LA TAREA"
+          oninput="updateTask('${t.id}','titulo',this.value)" autocapitalize="characters">
+        <div class="task-tags" id="tags-${t.id}">
+          ${t.fecha?`<span class="tag-date">${esc(t.fecha)}</span>`:''}
+          ${t.resp?`<span class="tag-resp">${esc(t.resp)}</span>`:''}
+        </div>
+        <span class="task-expand" onclick="expandTask('${t.id}')">⋯</span>
+        <button class="task-del" onclick="delTask('${t.id}')">✕</button>
+      </div>
+      <div class="task-body">
+        <div class="field"><label>Descripción</label>
+          <textarea oninput="updateTask('${t.id}','desc',this.value)" placeholder="Descripción breve de la tarea…">${esc(t.desc)}</textarea>
+        </div>
+        <div class="row">
+          <div class="field"><label>Fecha Límite</label>
+            <input type="text" value="${esc(t.fecha)}" placeholder="DD/MM"
+              oninput="updateTask('${t.id}','fecha',this.value)" style="color:var(--amber);font-weight:600;text-align:center">
+          </div>
+          <div class="field"><label>Responsable</label>
+            <input type="text" value="${esc(t.resp)}" placeholder="MEL" maxlength="5"
+              oninput="updateTask('${t.id}','resp',this.value.toUpperCase())"
+              style="color:var(--blue);font-weight:700;text-align:center;letter-spacing:2px">
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  return `<nav class="nav">
+    <button class="nav-back" onclick="go('camera')">‹</button>
+    <span class="nav-title">Revisar y Corregir</span>
+    <span class="nav-action" style="font-size:13px">Paso 2/3</span>
+  </nav>
+  <div class="screen">
+    <div class="card">
+      <div class="slabel">Encabezado</div>
+      <div class="field"><label>Proyecto *</label>
+        <input type="text" id="f-proy" value="${esc(m.proyecto)}" placeholder="NOMBRE DEL PROYECTO"
+          style="font-weight:700;font-size:15px" autocapitalize="characters">
+      </div>
+      <div class="row">
+        <div class="field" style="flex:2"><label>Tipo de Reunión</label>
+          <input type="text" id="f-tipo" value="${esc(m.tipoReunion)}" placeholder="REUNIÓN DE OBRA" autocapitalize="characters">
+        </div>
+        <div class="field" style="flex:1"><label>Fecha</label>
+          <input type="text" id="f-fecha" value="${esc(m.fecha)}" placeholder="DD/MM/AAAA"
+            style="color:var(--amber);font-weight:600;text-align:center">
+        </div>
+      </div>
+      <div class="field"><label>Participantes (separados por coma)</label>
+        <input type="text" id="f-partic" value="${esc(parts)}" placeholder="Juan Pérez, María López…">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-hdr">
+        <div class="slabel" style="margin:0">Tareas (${m.tareas.length})</div>
+        <div style="display:flex;gap:6px">
+          ${pendN>0?`<span class="badge badge-p">${pendN} pend.</span>`:''}
+          ${doneN>0?`<span class="badge badge-d">${doneN} ejec.</span>`:''}
+        </div>
+      </div>
+      ${m.tareas.length===0?`<p style="color:var(--t2);font-size:13px;font-style:italic;text-align:center;padding:12px 0">
+        Sin tareas detectadas. Agregá manualmente.</p>`:''}
+      <div id="task-list">
+        ${m.tareas.map((t,i)=>taskHTML(t,i)).join('')}
+      </div>
+      <button class="add-task-btn" onclick="addTask()">＋ &nbsp; Agregar tarea</button>
+    </div>
+
+    <button class="btn btn-primary" onclick="saveReview()">Guardar y enviar →</button>
+    <div style="height:20px"></div>
+  </div>`;
+}
+
+/* ── SEND ─────────────────────────────── */
+function screenSend(){
+  const m = S.minuta;
+  const contacts = DB.contacts.get();
+  const sel = S.selContacts;
+  const pend = m.tareas.filter(t=>!t.done).length;
+  const done = m.tareas.filter(t=>t.done).length;
+
+  const recipHtml = contacts.length ? contacts.map(c=>`
+    <div class="r-row ${sel.has(c.id)?'sel':''}" onclick="toggleRecip('${c.id}')">
+      <div class="r-check">${sel.has(c.id)?'✓':''}</div>
+      <div style="flex:1;min-width:0">
+        <div class="r-name">${esc(c.nombre)}</div>
+        <div class="r-det">${[c.email?esc(c.email):'',c.tel?'📱 '+esc(c.tel):''].filter(Boolean).join(' · ')}</div>
+      </div>
+    </div>`).join('')
+  : `<p style="color:var(--t2);font-size:13px;font-style:italic">
+      Sin contactos. <a onclick="go('contacts')">Configurar lista →</a></p>`;
+
+  return `<nav class="nav">
+    <button class="nav-back" onclick="go('review')">‹</button>
+    <span class="nav-title">Enviar Minuta</span>
+  </nav>
+  <div class="screen">
+    <div class="send-summary">
+      <div class="send-proy">${esc(m.proyecto).toUpperCase()}</div>
+      <div class="send-meta">${esc(m.tipoReunion)} — ${esc(m.fecha)}</div>
+      <div class="send-badges">
+        <span class="send-badge">${pend} pendiente${pend!==1?'s':''}</span>
+        <span class="send-badge send-badge-g">${done} ejecutada${done!==1?'s':''}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sec-hdr">
+        <div class="slabel" style="margin:0">Destinatarios</div>
+        <a onclick="go('contacts')" style="font-size:13px;font-weight:600;cursor:pointer">Editar →</a>
+      </div>
+      ${recipHtml}
+    </div>
+
+    <div class="card">
+      <div class="slabel">Enviar como</div>
+      <button class="btn btn-email" onclick="sendEmail()">✉️ &nbsp; Enviar por Email</button>
+      <button class="btn btn-wa" onclick="sendWA()">💬 &nbsp; Enviar por WhatsApp</button>
+      <button class="btn btn-pdf btn-nobottom" id="btn-pdf" onclick="generatePDF()">📄 &nbsp; Descargar PDF</button>
+    </div>
+
+    <div class="card no-print">
+      <div class="slabel">Vista previa del texto</div>
+      <pre style="font-size:12px;color:var(--t1);white-space:pre-wrap;font-family:monospace;line-height:1.5;background:var(--bg);padding:12px;border-radius:var(--r-sm);border-left:3px solid var(--blue)">${esc(fmtEmail(m))}</pre>
+    </div>
+
+    <button class="btn btn-secondary no-print" onclick="newMinuta()">+ Nueva minuta</button>
+    <div style="height:20px"></div>
+  </div>`;
+}
+
+/* ── CONTACTS ─────────────────────────── */
+function screenContacts(){
+  const contacts = DB.contacts.get();
+  const rows = contacts.length ? contacts.map(c=>`
+    <div class="c-row">
+      <div class="c-toggle ${c.on?'on':'off'}" onclick="toggleContact('${c.id}')">${c.on?'✓':''}</div>
+      <div class="c-info">
+        <div class="c-name">${esc(c.nombre)}</div>
+        ${c.email?`<div class="c-det">✉️ ${esc(c.email)}</div>`:''}
+        ${c.tel?`<div class="c-det">📱 ${esc(c.tel)}</div>`:''}
+      </div>
+      <div class="c-acts">
+        <button class="c-btn" onclick="editContact('${c.id}')">✏️</button>
+        <button class="c-btn" onclick="delContact('${c.id}')">🗑</button>
+      </div>
+    </div>`).join('')
+  : `<p style="color:var(--t2);font-size:13px;font-style:italic;text-align:center;padding:20px 0">
+      Sin contactos. Tocá + para agregar al equipo.</p>`;
+
+  return `<nav class="nav">
+    <button class="nav-back" onclick="go(S.minuta?'send':'home')">‹</button>
+    <span class="nav-title">Lista de Distribución</span>
+  </nav>
+  <div class="screen">
+    <div class="tip">Los contactos activos (✓) se pre-seleccionan al enviar cada minuta.</div>
+    <div class="card">${rows}</div>
+  </div>
+  <button class="fab" onclick="openContactModal(null)">+</button>`;
+}
+
+/* ══════════════════════════════════════════
+   BIND EVENTS
+══════════════════════════════════════════ */
+function bindAll(){
+  const cam=$('inp-cam'), gal=$('inp-gal');
+  if(cam) cam.onchange = e=>loadImg(e.target.files[0]);
+  if(gal) gal.onchange = e=>loadImg(e.target.files[0]);
+}
+
+/* ══════════════════════════════════════════
+   ACTIONS — HOME
+══════════════════════════════════════════ */
+function openMinuta(id){
+  const m=DB.minutas.get().find(x=>x.id===id);
+  if(!m) return;
+  S.minuta=m;
+  S.selContacts=new Set(DB.contacts.get().filter(c=>c.on).map(c=>c.id));
+  go('send');
+}
+
+/* ══════════════════════════════════════════
+   ACTIONS — CAMERA
+══════════════════════════════════════════ */
+function loadImg(file){
+  if(!file) return;
+  const r=new FileReader();
+  r.onload=e=>{ S.imgSrc=e.target.result; render(); };
+  r.readAsDataURL(file);
+}
+
+async function startOCR(){
+  const procBtn=$('btn-proc'), ocrBox=$('ocr-box');
+  if(procBtn) procBtn.style.display='none';
+  if(ocrBox)  ocrBox.style.display='block';
+
+  try{
+    const worker=await Tesseract.createWorker('spa',1,{
+      logger: m=>{
+        if(m.status==='recognizing text'){
+          const pct=Math.round(m.progress*100);
+          const f=$('ocr-fill'), p=$('ocr-pct');
+          if(f) f.style.width=pct+'%';
+          if(p) p.textContent=pct+'%';
+        }
+      }
+    });
+    const {data:{text}}=await worker.recognize(S.imgSrc);
+    await worker.terminate();
+    S.editMinuta=parseOCR(text);
+    S.editMinuta.img=S.imgSrc;
+    go('review');
+  }catch(err){
+    console.error('OCR error:',err);
+    const ok=confirm('El reconocimiento tuvo un problema. ¿Continuar con ingreso manual?');
+    if(ok) skipOCR();
+    else { if(procBtn) procBtn.style.display='flex'; if(ocrBox) ocrBox.style.display='none'; }
+  }
+}
+
+function skipOCR(){
+  S.editMinuta=mkMinuta();
+  S.editMinuta.img=S.imgSrc;
+  go('review');
+}
+
+/* ══════════════════════════════════════════
+   ACTIONS — REVIEW
+══════════════════════════════════════════ */
+function updateTask(id,field,val){
+  const t=S.editMinuta.tareas.find(x=>x.id===id);
+  if(!t) return;
+  t[field]=val;
+  if(field==='fecha'||field==='resp'){
+    const tags=$('tags-'+id);
+    if(tags) tags.innerHTML=(t.fecha?`<span class="tag-date">${esc(t.fecha)}</span>`:'')+
+      (t.resp?`<span class="tag-resp">${esc(t.resp)}</span>`:'');
+  }
+}
+
+function toggleTask(id){
+  const t=S.editMinuta.tareas.find(x=>x.id===id);
+  if(!t) return;
+  t.done=!t.done;
+  const taskEl=$('task-'+id);
+  if(!taskEl) return;
+  taskEl.className=`task ${t.done?'done':''} expanded`;
+  const cb=taskEl.querySelector('.task-cb');
+  if(cb){ cb.className=`task-cb ${t.done?'done':'pend'}`; cb.textContent=t.done?'■':'□'; }
+  const inp=taskEl.querySelector('.task-title-inp');
+  if(inp) inp.style.textDecoration=t.done?'line-through':'none';
+}
+
+function expandTask(id){
+  const taskEl=$('task-'+id);
+  if(taskEl) taskEl.classList.toggle('expanded');
+}
+
+function delTask(id){
+  S.editMinuta.tareas=S.editMinuta.tareas.filter(x=>x.id!==id);
+  const taskEl=$('task-'+id);
+  if(taskEl) taskEl.remove();
+}
+
+function addTask(){
+  const t=mkTarea();
+  S.editMinuta.tareas.push(t);
+  const list=$('task-list');
+  const idx=S.editMinuta.tareas.length;
+  const div=document.createElement('div');
+  div.id='task-'+t.id;
+  div.className='task expanded';
+  div.innerHTML=`
+    <div class="task-head">
+      <span class="task-cb pend" onclick="toggleTask('${t.id}')">□</span>
+      <span class="task-num">${idx}.</span>
+      <input class="task-title-inp" value="" placeholder="TÍTULO DE LA TAREA"
+        oninput="updateTask('${t.id}','titulo',this.value)" autocapitalize="characters">
+      <div class="task-tags" id="tags-${t.id}"></div>
+      <span class="task-expand" onclick="expandTask('${t.id}')">⋯</span>
+      <button class="task-del" onclick="delTask('${t.id}')">✕</button>
+    </div>
+    <div class="task-body">
+      <div class="field"><label>Descripción</label>
+        <textarea oninput="updateTask('${t.id}','desc',this.value)" placeholder="Descripción breve…"></textarea>
+      </div>
+      <div class="row">
+        <div class="field"><label>Fecha Límite</label>
+          <input type="text" placeholder="DD/MM"
+            oninput="updateTask('${t.id}','fecha',this.value)" style="color:var(--amber);font-weight:600;text-align:center">
+        </div>
+        <div class="field"><label>Responsable</label>
+          <input type="text" placeholder="MEL" maxlength="5"
+            oninput="updateTask('${t.id}','resp',this.value.toUpperCase())"
+            style="color:var(--blue);font-weight:700;text-align:center;letter-spacing:2px">
+        </div>
+      </div>
+    </div>`;
+  if(list) list.appendChild(div);
+  setTimeout(()=>div.querySelector('.task-title-inp')?.focus(),60);
+}
+
+function syncHeader(){
+  const m=S.editMinuta;
+  m.proyecto=($('f-proy')?.value||'').trim();
+  m.tipoReunion=($('f-tipo')?.value||'').trim();
+  m.fecha=($('f-fecha')?.value||'').trim();
+  const p=$('f-partic')?.value||'';
+  m.participantes=p.split(',').map(x=>x.trim()).filter(Boolean);
+}
+
+function saveReview(){
+  syncHeader();
+  const m=S.editMinuta;
+  if(!m.proyecto){ alert('Ingresá el nombre del proyecto antes de continuar.'); $('f-proy')?.focus(); return; }
+  const ms=DB.minutas.get();
+  const idx=ms.findIndex(x=>x.id===m.id);
+  if(idx>=0) ms[idx]=m; else ms.unshift(m);
+  DB.minutas.set(ms);
+  S.minuta=m;
+  S.selContacts=new Set(DB.contacts.get().filter(c=>c.on).map(c=>c.id));
+  go('send');
+}
+
+/* ══════════════════════════════════════════
+   ACTIONS — SEND
+══════════════════════════════════════════ */
+function toggleRecip(id){
+  if(S.selContacts.has(id)) S.selContacts.delete(id); else S.selContacts.add(id);
+  const rowEl=document.querySelector(`.r-row[onclick="toggleRecip('${id}')"]`);
+  if(rowEl){
+    const sel=S.selContacts.has(id);
+    rowEl.className='r-row'+(sel?' sel':'');
+    rowEl.querySelector('.r-check').textContent=sel?'✓':'';
+  }
+}
+
+function getSelContacts(){ return DB.contacts.get().filter(c=>S.selContacts.has(c.id)); }
+
+function sendEmail(){
+  const m=S.minuta;
+  const to=getSelContacts().filter(c=>c.email).map(c=>c.email).join(',');
+  const subj=encodeURIComponent(fmtSubject(m));
+  const body=encodeURIComponent(fmtEmail(m));
+  window.location.href=`mailto:${to}?subject=${subj}&body=${body}`;
+}
+
+function sendWA(){
+  const text=fmtWA(S.minuta);
+  const phones=getSelContacts().filter(c=>c.tel);
+  if(phones.length===1){
+    window.open('https://wa.me/'+phones[0].tel.replace(/\D/g,'')+'?text='+encodeURIComponent(text),'_blank');
+  } else {
+    window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');
+  }
+}
+
+function newMinuta(){ S.imgSrc=null; S.minuta=null; S.editMinuta=null; go('camera'); }
+
+/* ══════════════════════════════════════════
+   PDF — html2pdf.js
+══════════════════════════════════════════ */
+function buildPDFHTML(m) {
+  const today = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
+  const pendN = m.tareas.filter(t=>!t.done).length;
+  const doneN = m.tareas.filter(t=>t.done).length;
+
+  const rows = m.tareas.map((t,i) => `
+    <tr style="background:${t.done?'#E8F5E9':'#fff'};border-bottom:1px solid #E0E0E0">
+      <td style="text-align:center;font-size:15px;padding:8px 6px;width:24px">${t.done?'■':'□'}</td>
+      <td style="padding:8px 10px;width:42%">
+        <div style="font-weight:700;font-size:11pt;${t.done?'text-decoration:line-through;color:#9E9E9E':''}">${esc(t.titulo)}</div>
+        ${t.desc?`<div style="font-size:9.5pt;color:#616161;margin-top:2px">${esc(t.desc)}</div>`:''}
+      </td>
+      <td style="padding:8px 10px;font-size:10pt;color:#FF6F00;font-weight:700;white-space:nowrap;width:15%">${esc(t.fecha)}</td>
+      <td style="padding:8px 10px;font-size:10.5pt;color:#1A237E;font-weight:700;text-align:center;width:12%;letter-spacing:1px">${esc(t.resp)}</td>
+    </tr>`).join('');
+
+  return `<div style="font-family:Arial,Helvetica,sans-serif;padding:24px 28px;max-width:740px;color:#212121">
+    <div style="border-bottom:3px solid #1A237E;padding-bottom:14px;margin-bottom:18px">
+      <div style="font-size:9pt;color:#757575;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:4px">
+        Albera &amp; Asociados — Project Management
+      </div>
+      <h1 style="font-size:20pt;color:#1A237E;text-transform:uppercase;margin:0 0 6px;letter-spacing:.5px">
+        ${esc(m.proyecto)}
+      </h1>
+      <div style="font-size:12pt;color:#424242;margin-bottom:6px">
+        <strong>${esc(m.tipoReunion)}</strong> &mdash; ${esc(m.fecha)}
+      </div>
+      ${m.participantes?.length?`<div style="font-size:10pt;color:#616161;margin-bottom:8px">Participantes: ${esc(m.participantes.join(', '))}</div>`:''}
+      <div>
+        <span style="background:#E3F2FD;color:#1A237E;font-size:10pt;font-weight:700;padding:3px 12px;border-radius:10px;margin-right:8px">${pendN} Pendiente${pendN!==1?'s':''}</span>
+        <span style="background:#E8F5E9;color:#2E7D32;font-size:10pt;font-weight:700;padding:3px 12px;border-radius:10px">${doneN} Ejecutada${doneN!==1?'s':''}</span>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:11pt">
+      <thead>
+        <tr style="background:#1A237E;color:#fff">
+          <th style="padding:9px 6px;width:24px"></th>
+          <th style="padding:9px 10px;text-align:left">Tarea</th>
+          <th style="padding:9px 10px;text-align:left;white-space:nowrap">Fecha límite</th>
+          <th style="padding:9px 10px;text-align:center">Resp.</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:22px;border-top:1px solid #E0E0E0;padding-top:10px;font-size:9pt;color:#9E9E9E;display:flex;justify-content:space-between">
+      <span>APP MINUTAS &mdash; Albera &amp; Asociados &mdash; g.albera@alberayasociados.com</span>
+      <span>Generado: ${today}</span>
+    </div>
+  </div>`;
+}
+
+async function generatePDF() {
+  const m = S.minuta;
+  const btn = $('btn-pdf');
+  if (btn) { btn.textContent = '⏳ Generando PDF…'; btn.disabled = true; }
+
+  try {
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:fixed;left:-9999px;top:0;width:210mm;background:#fff';
+    wrapper.innerHTML = buildPDFHTML(m);
+    document.body.appendChild(wrapper);
+
+    const filename = 'Minuta_'
+      + (m.proyecto||'sin-nombre').replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ\s]/g,'').replace(/\s+/g,'_').slice(0,40)
+      + '_' + (m.fecha||'').replace(/\//g,'-')
+      + '.pdf';
+
+    await html2pdf().set({
+      margin: [12, 12, 12, 12],
+      filename,
+      image: { type: 'jpeg', quality: 0.97 },
+      html2canvas: { scale: 2, useCORS: true, logging: false },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    }).from(wrapper).save();
+
+    document.body.removeChild(wrapper);
+  } catch(err) {
+    console.error('PDF error:', err);
+    alert('No se pudo generar el PDF. Intentá de nuevo.');
+  }
+
+  if (btn) { btn.innerHTML = '📄 &nbsp; Descargar PDF'; btn.disabled = false; }
+}
+
+/* ══════════════════════════════════════════
+   ACTIONS — CONTACTS
+══════════════════════════════════════════ */
+function toggleContact(id){
+  const cs=DB.contacts.get(), c=cs.find(x=>x.id===id);
+  if(!c) return;
+  c.on=!c.on; DB.contacts.set(cs);
+  const tog=document.querySelector(`.c-toggle[onclick="toggleContact('${id}')"]`);
+  if(tog){ tog.className='c-toggle '+(c.on?'on':'off'); tog.textContent=c.on?'✓':''; }
+}
+
+function delContact(id){
+  if(!confirm('¿Eliminar este contacto?')) return;
+  DB.contacts.set(DB.contacts.get().filter(x=>x.id!==id));
+  render();
+}
+
+function editContact(id){
+  openContactModal(DB.contacts.get().find(x=>x.id===id)||null);
+}
+
+function openContactModal(c){
+  const isNew=!c;
+  const d=c||{id:uid(),nombre:'',email:'',tel:'',on:true};
+  $('modal-root').innerHTML=`
+  <div class="modal-ov" onclick="if(event.target===this)closeModal()">
+    <div class="modal-card">
+      <div class="modal-title">${isNew?'Nuevo Contacto':'Editar Contacto'}</div>
+      <div class="field"><label>Nombre *</label>
+        <input type="text" id="mc-n" value="${esc(d.nombre)}" placeholder="Nombre Apellido" autocomplete="name">
+      </div>
+      <div class="field"><label>Email</label>
+        <input type="email" id="mc-e" value="${esc(d.email)}" placeholder="correo@empresa.com" autocapitalize="none" inputmode="email">
+      </div>
+      <div class="field"><label>WhatsApp (con código de país)</label>
+        <input type="tel" id="mc-t" value="${esc(d.tel)}" placeholder="+54911XXXXXXXX" inputmode="tel">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveContact('${d.id}',${isNew})">Guardar</button>
+      </div>
+    </div>
+  </div>`;
+  setTimeout(()=>$('mc-n')?.focus(),100);
+}
+
+function closeModal(){ $('modal-root').innerHTML=''; }
+
+function saveContact(id,isNew){
+  const nombre=($('mc-n')?.value||'').trim();
+  const email=($('mc-e')?.value||'').trim();
+  const tel=($('mc-t')?.value||'').trim();
+  if(!nombre){ alert('Ingresá el nombre del contacto.'); return; }
+  if(!email&&!tel){ alert('Ingresá al menos un email o número de WhatsApp.'); return; }
+  const cs=DB.contacts.get();
+  if(isNew){ cs.push({id,nombre,email,tel,on:true}); }
+  else {
+    const idx=cs.findIndex(x=>x.id===id);
+    if(idx>=0) cs[idx]={...cs[idx],nombre,email,tel};
+  }
+  DB.contacts.set(cs); closeModal(); render();
+}
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+render();
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
