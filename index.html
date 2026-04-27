@@ -247,7 +247,7 @@ function parseOCR(raw) {
   if (!lines.length) return mkMinuta();
 
   const DATE_RE = /\b(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\b/;
-  const RESP_RE = /\b([A-ZÁÉÍÓÚÑ]{2,5})\s*$/u;
+  const RESP_RE = /\b([A-ZÁÉÍÓÚÑ]{2,5}(?:\/[A-ZÁÉÍÓÚÑ]{2,5})?)\s*$/u;
 
   function detectCb(line) {
     // ── 1. Checkbox Unicode explícito ──────────────────────────────────
@@ -264,8 +264,11 @@ function parseOCR(raw) {
     // El formato de esta minuta es siempre: [checkbox] TEMA: descripción — RESP
     // El checkbox pintado a mano NUNCA produce el char Unicode exacto.
     // La firma confiable es "PALABRA(S) EN MAYÚSCULAS seguidas de ':'".
-    // Solo se activa después de las 2 primeras líneas de encabezado (hc >= 2).
-    if (hc >= 2) {
+    // Se activa desde la primera línea de encabezado (hc >= 1).
+    if (hc >= 1) {
+      // Excluir líneas de encabezado que contienen palabras clave de participantes
+      // para que no sean clasificadas como tareas
+      if (/^(PRESENTES|PARTICIPANTES|ASISTENTES)\s*:/iu.test(line)) return {ok:false};
       // Permite prefijo de hasta 4 chars (el checkbox mal leído) + TEMA:
       const TOPIC_RE = /^(.{0,4}?)([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9\s\.\-\/ÑÁÉÍÓÚ]{0,35}):/u;
       const tm = TOPIC_RE.exec(line);
@@ -329,6 +332,16 @@ function parseOCR(raw) {
   let hc=0, inTasks=false;
 
   for (const line of lines) {
+    // ── Detección de PRESENTES/PARTICIPANTES/ASISTENTES en cualquier posición ──
+    // Se verifica ANTES de detectCb para que no queden sin capturar si aparecen
+    // en la línea 2 (hc===1) o antes de que se detecten tareas.
+    if (/participantes|asistentes|presentes/i.test(line) && line.includes(':')) {
+      const ps = line.replace(/^[^:]+:\s*/,'').split(/[,;]/).map(p=>p.trim()).filter(Boolean);
+      if (ps.length > 0) participantes = ps;
+      if (!inTasks) hc++;   // contar como línea de encabezado si aún no hay tareas
+      continue;
+    }
+
     const cb = detectCb(line);
     if (cb.ok) { inTasks=true; tareas.push(parseTarea(cb.c,cb.done)); continue; }
     if (inTasks) continue;
@@ -339,9 +352,8 @@ function parseOCR(raw) {
       if(dm){ fecha=dm[1]; tipoReunion=line.replace(DATE_RE,'').replace(/[-–—]/g,'').trim(); }
       else tipoReunion=line;
     } else {
-      if (/participantes|asistentes|presentes/i.test(line)) {
-        participantes=line.replace(/^[^:]+:\s*/,'').split(/[,;]/).map(p=>p.trim()).filter(Boolean);
-      } else if (line.includes(',')) {
+      // Fallback: línea de participantes sin la palabra clave, separados por coma
+      if (line.includes(',')) {
         const ps=line.split(',').map(p=>p.trim()).filter(Boolean);
         if (ps.length>1) participantes=ps;
       }
@@ -530,6 +542,24 @@ function screenReview(){
   const pendN = m.tareas.filter(t=>!t.done).length;
   const doneN = m.tareas.filter(t=>t.done).length;
 
+  // Pre-computar el banner de importación ANTES del template literal
+  // (no usar IIFE dentro de template literal — causa error de sintaxis en iOS Safari)
+  let importBannerHtml = '';
+  if (m.proyecto) {
+    const prevM = DB.minutas.get()
+      .filter(x=>x.proyecto&&x.proyecto.toLowerCase().trim()===m.proyecto.toLowerCase().trim()&&x.id!==m.id)
+      .sort((a,b)=>b.creadaEn.localeCompare(a.creadaEn))[0];
+    const pendPrev = prevM ? prevM.tareas.filter(t=>!t.done) : [];
+    if (pendPrev.length) {
+      importBannerHtml = '<div class="import-banner">'
+        + '<span style="font-size:20px">📋</span>'
+        + '<div class="import-banner-text"><b>' + pendPrev.length + ' tarea' + (pendPrev.length!==1?'s':'') + ' pendiente' + (pendPrev.length!==1?'s':'') + '</b>'
+        + ' de Minuta #' + (prevM.numero||'anterior') + ' (' + prevM.fecha + ')</div>'
+        + '<button class="btn-import" onclick="importPendingTasks(\'' + prevM.id + '\')">Importar</button>'
+        + '</div>';
+    }
+  }
+
   function taskHTML(t,i){
     return `<div class="task ${t.done?'done':''} expanded" id="task-${t.id}">
       <div class="task-head">
@@ -554,7 +584,7 @@ function screenReview(){
               oninput="updateTask('${t.id}','fecha',this.value)" style="color:var(--amber);font-weight:600;text-align:center">
           </div>
           <div class="field"><label>Responsable</label>
-            <input type="text" value="${esc(t.resp)}" placeholder="MEL" maxlength="5"
+            <input type="text" value="${esc(t.resp)}" placeholder="MEL/CAM" maxlength="9"
               oninput="updateTask('${t.id}','resp',this.value.toUpperCase())"
               style="color:var(--blue);font-weight:700;text-align:center;letter-spacing:2px">
           </div>
@@ -597,17 +627,7 @@ function screenReview(){
           ${doneN>0?`<span class="badge badge-d">${doneN} ejec.</span>`:''}
         </div>
       </div>
-      ${(()=>{
-        const prevM = DB.minutas.get()
-          .filter(x=>x.proyecto&&x.proyecto.toLowerCase().trim()===m.proyecto.toLowerCase().trim()&&x.id!==m.id)
-          .sort((a,b)=>b.creadaEn.localeCompare(a.creadaEn))[0];
-        const pend = prevM ? prevM.tareas.filter(t=>!t.done) : [];
-        return pend.length ? `<div class="import-banner">
-          <span style="font-size:20px">📋</span>
-          <div class="import-banner-text"><b>${pend.length} tarea${pend.length!==1?'s':''} pendiente${pend.length!==1?'s':''}</b> de Minuta #${prevM.numero||'anterior'} (${prevM.fecha})</div>
-          <button class="btn-import" onclick="importPendingTasks('${prevM.id}')">Importar</button>
-        </div>` : '';
-      })()}
+      ${importBannerHtml}
       ${m.tareas.length===0?`<p style="color:var(--t2);font-size:13px;font-style:italic;text-align:center;padding:12px 0">
         Sin tareas detectadas. Agregá manualmente.</p>`:''}
       <div id="task-list">
@@ -888,7 +908,7 @@ function addTask(){
             oninput="updateTask('${t.id}','fecha',this.value)" style="color:var(--amber);font-weight:600;text-align:center">
         </div>
         <div class="field"><label>Responsable</label>
-          <input type="text" placeholder="MEL" maxlength="5"
+          <input type="text" placeholder="MEL/CAM" maxlength="9"
             oninput="updateTask('${t.id}','resp',this.value.toUpperCase())"
             style="color:var(--blue);font-weight:700;text-align:center;letter-spacing:2px">
         </div>
