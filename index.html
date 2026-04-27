@@ -172,6 +172,23 @@ a{color:var(--blue);text-decoration:none}
 .sec-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .sec-hdr .slabel{margin:0}
 
+/* REMINDER SCREEN */
+.rem-proj{background:var(--sur);border-radius:var(--r);border:.5px solid var(--bdr);margin-bottom:12px;overflow:hidden}
+.rem-proj-hdr{background:var(--blue);color:#fff;padding:11px 14px;display:flex;justify-content:space-between;align-items:center}
+.rem-proj-name{font-size:14px;font-weight:700;letter-spacing:.3px}
+.rem-proj-meta{font-size:12px;opacity:.8}
+.rem-task{padding:9px 14px;border-bottom:.5px solid var(--bdr);display:flex;align-items:flex-start;gap:8px}
+.rem-task:last-child{border-bottom:none}
+.rem-task-body{flex:1;font-size:13px}
+.rem-task-title{font-weight:600;color:var(--t1)}
+.rem-task-meta{font-size:11px;color:var(--t2);margin-top:2px}
+.rem-proj-acts{display:flex;gap:8px;padding:10px 14px;border-top:.5px solid var(--bdr);background:var(--bg)}
+
+/* IMPORT BANNER */
+.import-banner{background:#E8F5E9;border:1px solid #A5D6A7;border-radius:var(--r-sm);padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.import-banner-text{flex:1;font-size:13px;color:var(--green)}
+.btn-import{background:var(--green);color:#fff;border:none;border-radius:var(--r-sm);padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+
 /* PRINT */
 @media print{
   .nav,.fab,.btn,.add-task-btn,.no-print,nav{display:none!important}
@@ -335,7 +352,7 @@ function parseOCR(raw) {
 }
 
 function mkMinuta(){
-  return {id:uid(),proyecto:'',tipoReunion:'',fecha:today(),participantes:[],tareas:[],img:null,creadaEn:new Date().toISOString()};
+  return {id:uid(),numero:0,proyecto:'',tipoReunion:'',fecha:today(),participantes:[],tareas:[],img:null,creadaEn:new Date().toISOString()};
 }
 function mkTarea(){
   return {id:uid(),titulo:'',desc:'',fecha:'',resp:'',done:false};
@@ -398,7 +415,8 @@ function go(screen){ S.screen=screen; render(); window.scrollTo(0,0); }
 function render(){
   $('app').innerHTML = ({
     home:screenHome, camera:screenCamera,
-    review:screenReview, send:screenSend, contacts:screenContacts
+    review:screenReview, send:screenSend,
+    contacts:screenContacts, reminder:screenReminder
   }[S.screen] || screenHome)();
   bindAll();
 }
@@ -406,13 +424,15 @@ function render(){
 /* ── HOME ─────────────────────────────── */
 function screenHome(){
   const ms = DB.minutas.get().slice().sort((a,b)=>b.creadaEn.localeCompare(a.creadaEn));
+  const totalPend = ms.reduce((s,m)=>s+m.tareas.filter(t=>!t.done).length,0);
   const cards = ms.length ? ms.map(m=>{
     const pend=m.tareas.filter(t=>!t.done).length, total=m.tareas.length;
     const d=new Date(m.creadaEn).toLocaleDateString('es-AR',{day:'2-digit',month:'short'});
+    const num = m.numero ? `<span style="font-size:11px;font-weight:700;color:var(--blue);background:var(--blue-lt);padding:2px 7px;border-radius:6px;margin-right:4px">#${m.numero}</span>` : '';
     return `<div class="m-card" onclick="openMinuta('${m.id}')">
       <div class="m-bar"></div>
       <div class="m-body">
-        <div class="m-proyecto">${esc(m.proyecto||'(Sin nombre)')}</div>
+        <div class="m-proyecto">${num}${esc(m.proyecto||'(Sin nombre)')}</div>
         <div class="m-tipo">${esc(m.tipoReunion||'Reunión')} · ${esc(m.fecha)}</div>
         <div class="m-footer">
           <span class="badge badge-n">${total} tarea${total!==1?'s':''}</span>
@@ -430,7 +450,10 @@ function screenHome(){
 
   return `<nav class="nav">
     <span class="nav-title">Minutas — A&amp;A</span>
-    <button class="nav-action" onclick="go('contacts')">👥 Equipo</button>
+    <button class="nav-action" onclick="go('reminder')" style="position:relative">
+      🔔${totalPend>0?`<span style="position:absolute;top:-4px;right:-4px;background:#C62828;color:#fff;font-size:10px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center">${totalPend}</span>`:''}
+    </button>
+    <button class="nav-action" onclick="go('contacts')">👥</button>
   </nav>
   <div class="screen">${cards}</div>
   <button class="fab" onclick="go('camera')">+</button>`;
@@ -574,6 +597,17 @@ function screenReview(){
           ${doneN>0?`<span class="badge badge-d">${doneN} ejec.</span>`:''}
         </div>
       </div>
+      ${(()=>{
+        const prevM = DB.minutas.get()
+          .filter(x=>x.proyecto&&x.proyecto.toLowerCase().trim()===m.proyecto.toLowerCase().trim()&&x.id!==m.id)
+          .sort((a,b)=>b.creadaEn.localeCompare(a.creadaEn))[0];
+        const pend = prevM ? prevM.tareas.filter(t=>!t.done) : [];
+        return pend.length ? `<div class="import-banner">
+          <span style="font-size:20px">📋</span>
+          <div class="import-banner-text"><b>${pend.length} tarea${pend.length!==1?'s':''} pendiente${pend.length!==1?'s':''}</b> de Minuta #${prevM.numero||'anterior'} (${prevM.fecha})</div>
+          <button class="btn-import" onclick="importPendingTasks('${prevM.id}')">Importar</button>
+        </div>` : '';
+      })()}
       ${m.tareas.length===0?`<p style="color:var(--t2);font-size:13px;font-style:italic;text-align:center;padding:12px 0">
         Sin tareas detectadas. Agregá manualmente.</p>`:''}
       <div id="task-list">
@@ -646,7 +680,8 @@ function screenSend(){
       <div class="slabel">Enviar como</div>
       <button class="btn btn-email" onclick="sendEmail()">✉️ &nbsp; Enviar por Email</button>
       <button class="btn btn-wa" onclick="sendWA()">💬 &nbsp; Enviar por WhatsApp</button>
-      <button class="btn btn-pdf btn-nobottom" id="btn-pdf" onclick="generatePDF()">📄 &nbsp; Descargar PDF</button>
+      <button class="btn btn-pdf" id="btn-pdf" onclick="generatePDF()">📄 &nbsp; Descargar PDF</button>
+      <button class="btn btn-nobottom" id="btn-xls" onclick="generateXLS()" style="background:#E8F5E9;color:#1B5E20;border:1.5px solid #388E3C">📊 &nbsp; Exportar a Excel</button>
     </div>
 
     <div class="card no-print">
@@ -766,7 +801,7 @@ async function startOCR(){
 function skipOCR(){
   S.ocrRawText = null;
   S.editMinuta=mkMinuta();
-  S.editMinuta.img=S.imgSrc;
+  S.editMinuta.img=S.imgPages[0]||null;
   go('review');
 }
 
@@ -877,6 +912,12 @@ function saveReview(){
   const m=S.editMinuta;
   if(!m.proyecto){ alert('Ingresá el nombre del proyecto antes de continuar.'); $('f-proy')?.focus(); return; }
   const ms=DB.minutas.get();
+  // Asignar número correlativo si es nueva minuta del proyecto
+  if(!m.numero || m.numero===0){
+    const prevMs=ms.filter(x=>x.proyecto.toLowerCase().trim()===m.proyecto.toLowerCase().trim()&&x.id!==m.id);
+    const maxNum=prevMs.reduce((mx,x)=>Math.max(mx,x.numero||0),0);
+    m.numero=maxNum+1;
+  }
   const idx=ms.findIndex(x=>x.id===m.id);
   if(idx>=0) ms[idx]=m; else ms.unshift(m);
   DB.minutas.set(ms);
@@ -918,7 +959,7 @@ function sendWA(){
   }
 }
 
-function newMinuta(){ S.imgSrc=null; S.minuta=null; S.editMinuta=null; go('camera'); }
+function newMinuta(){ S.imgPages=[]; S.minuta=null; S.editMinuta=null; S.ocrRawText=null; go('camera'); }
 
 /* ══════════════════════════════════════════
    PDF — html2pdf.js
@@ -1071,9 +1112,243 @@ function saveContact(id,isNew){
 }
 
 /* ══════════════════════════════════════════
+   IMPORT PENDING TASKS
+══════════════════════════════════════════ */
+function importPendingTasks(prevId){
+  const prevM = DB.minutas.get().find(x=>x.id===prevId);
+  if(!prevM) return;
+  const pend = prevM.tareas.filter(t=>!t.done).map(t=>({...t, id:uid(), done:false}));
+  if(!pend.length){ alert('No hay tareas pendientes en esa minuta.'); return; }
+  // Evitar duplicados por título
+  const existing = new Set(S.editMinuta.tareas.map(t=>t.titulo.toLowerCase().trim()));
+  const toAdd = pend.filter(t=>!existing.has(t.titulo.toLowerCase().trim()));
+  S.editMinuta.tareas = [...toAdd, ...S.editMinuta.tareas];
+  render();
+}
+
+/* ══════════════════════════════════════════
+   EXCEL EXPORT
+══════════════════════════════════════════ */
+async function generateXLS(){
+  const btn=$('btn-xls');
+  if(btn){ btn.textContent='⏳ Generando…'; btn.disabled=true; }
+  try{
+    if(!window.XLSX){
+      await new Promise((ok,fail)=>{
+        const s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        s.onload=ok; s.onerror=fail;
+        document.head.appendChild(s);
+      });
+    }
+    const m=S.minuta;
+    const wb=XLSX.utils.book_new();
+    const data=[
+      [`PROYECTO: ${m.proyecto.toUpperCase()}`, '', '', `Minuta #${m.numero||1}`, '', ''],
+      [`REUNIÓN: ${m.tipoReunion}`, '', `FECHA: ${m.fecha}`, '', '', ''],
+      [`PARTICIPANTES: ${(m.participantes||[]).join(', ')}`, '', '', '', '', ''],
+      [],
+      ['N°','ESTADO','TAREA','DESCRIPCIÓN','FECHA LÍMITE','RESPONSABLE'],
+      ...m.tareas.map((t,i)=>[
+        i+1,
+        t.done?'EJECUTADA':'PENDIENTE',
+        t.titulo,
+        t.desc||'',
+        t.fecha||'',
+        t.resp||''
+      ])
+    ];
+    const ws=XLSX.utils.aoa_to_sheet(data);
+    ws['!cols']=[{wch:4},{wch:12},{wch:36},{wch:42},{wch:14},{wch:12}];
+    // Estilo de encabezado (negrita en fila 5 = índice 4)
+    ws['!merges']=[
+      {s:{r:0,c:0},e:{r:0,c:2}},{s:{r:1,c:0},e:{r:1,c:1}},
+      {s:{r:2,c:0},e:{r:2,c:5}}
+    ];
+    XLSX.utils.book_append_sheet(wb,ws,'Minuta');
+    // Hoja 2: solo pendientes
+    const pend=m.tareas.filter(t=>!t.done);
+    if(pend.length){
+      const ws2=XLSX.utils.aoa_to_sheet([
+        [`PENDIENTES — ${m.proyecto.toUpperCase()} — Minuta #${m.numero||1}`,'','','',''],
+        [],
+        ['N°','TAREA','DESCRIPCIÓN','FECHA LÍMITE','RESPONSABLE'],
+        ...pend.map((t,i)=>[i+1,t.titulo,t.desc||'',t.fecha||'',t.resp||''])
+      ]);
+      ws2['!cols']=[{wch:4},{wch:36},{wch:42},{wch:14},{wch:12}];
+      XLSX.utils.book_append_sheet(wb,ws2,'Pendientes');
+    }
+    const fn=`Minuta_${(m.proyecto||'').replace(/[^a-zA-Z0-9]/g,'_').slice(0,28)}_#${m.numero||1}_${(m.fecha||'').replace(/\//g,'-')}.xlsx`;
+    XLSX.writeFile(wb,fn);
+  }catch(e){
+    console.error('XLS error:',e);
+    alert('No se pudo generar el Excel. Intentá de nuevo.');
+  }
+  if(btn){ btn.innerHTML='📊 &nbsp; Exportar a Excel'; btn.disabled=false; }
+}
+
+/* ══════════════════════════════════════════
+   REMINDER SCREEN
+══════════════════════════════════════════ */
+function buildReminderText(projects){
+  const fecha=new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
+  const L=[`📋 *RECORDATORIO SEMANAL — ${fecha.toUpperCase()}*`,''];
+  projects.forEach(({m,pend})=>{
+    L.push(`*${m.proyecto.toUpperCase()}* — Minuta #${m.numero||'?'} (${m.fecha})`);
+    pend.forEach(t=>{
+      L.push(`□ *${t.titulo}*${t.desc?' — '+t.desc:''}${t.fecha?' 📅 '+t.fecha:''}${t.resp?' 👤 '+t.resp:''}`);
+    });
+    L.push('');
+  });
+  L.push('─'.repeat(36),'_Albera & Asociados — Project Management_');
+  return L.join('\n');
+}
+
+function getReminderProjects(){
+  const ms=DB.minutas.get();
+  // Para cada proyecto, la minuta más reciente con pendientes
+  const byProj={};
+  ms.forEach(m=>{
+    const key=m.proyecto.toLowerCase().trim();
+    if(!key) return;
+    const pend=m.tareas.filter(t=>!t.done);
+    if(!pend.length) return;
+    if(!byProj[key]||m.creadaEn>byProj[key].m.creadaEn) byProj[key]={m,pend};
+  });
+  return Object.values(byProj);
+}
+
+function screenReminder(){
+  const projects=getReminderProjects();
+  const notifEnabled=ld('aa:notif-enabled',false);
+  const projCards=projects.length ? projects.map(({m,pend})=>`
+    <div class="rem-proj">
+      <div class="rem-proj-hdr">
+        <div>
+          <div class="rem-proj-name">${esc(m.proyecto.toUpperCase())}</div>
+          <div class="rem-proj-meta">Minuta #${m.numero||'?'} · ${esc(m.fecha)} · ${pend.length} pendiente${pend.length!==1?'s':''}</div>
+        </div>
+      </div>
+      ${pend.map(t=>`
+        <div class="rem-task">
+          <span style="color:var(--t3);font-size:16px;margin-top:1px">□</span>
+          <div class="rem-task-body">
+            <div class="rem-task-title">${esc(t.titulo)}</div>
+            ${t.desc?`<div class="rem-task-meta">${esc(t.desc)}</div>`:''}
+            <div class="rem-task-meta">
+              ${t.fecha?`📅 ${esc(t.fecha)}`:''}${t.fecha&&t.resp?' &nbsp;':''}${t.resp?`👤 ${esc(t.resp)}`:''}
+            </div>
+          </div>
+        </div>`).join('')}
+      <div class="rem-proj-acts">
+        <button class="btn btn-email btn-sm btn-nobottom" style="flex:1" onclick="sendReminderEmail('${m.id}')">✉️ Email</button>
+        <button class="btn btn-wa btn-sm btn-nobottom" style="flex:1" onclick="sendReminderWA('${m.id}')">💬 WhatsApp</button>
+      </div>
+    </div>`).join('')
+  : `<div class="empty">
+      <div class="empty-icon">✅</div>
+      <div class="empty-title">Sin pendientes</div>
+      <div class="empty-text">Todas las tareas están ejecutadas.</div>
+    </div>`;
+
+  return `<nav class="nav">
+    <button class="nav-back" onclick="go('home')">‹</button>
+    <span class="nav-title">🔔 Recordatorio Semanal</span>
+  </nav>
+  <div class="screen">
+    <div class="tip">Resumen de tareas pendientes de todas las minutas. Envialo cada martes al equipo.</div>
+    ${projCards}
+    <div class="card">
+      <div class="slabel">Enviar todo a la vez</div>
+      <button class="btn btn-email" onclick="sendReminderEmailAll()">✉️ &nbsp; Email — Todas las pendientes</button>
+      <button class="btn btn-wa btn-nobottom" onclick="sendReminderWAAll()">💬 &nbsp; WhatsApp — Todas las pendientes</button>
+    </div>
+    <div class="card">
+      <div class="slabel">Recordatorio automático (martes)</div>
+      <p style="font-size:13px;color:var(--t2);margin-bottom:10px">Al abrir la app los martes recibirás una notificación para enviar el recordatorio.</p>
+      <button class="btn ${notifEnabled?'btn-secondary':'btn-primary'} btn-nobottom" onclick="scheduleReminderNotif()">
+        ${notifEnabled?'🔔 Notificación activada':'🔔 Activar notificación semanal'}
+      </button>
+    </div>
+    <div style="height:20px"></div>
+  </div>`;
+}
+
+function sendReminderEmail(mId){
+  const m=DB.minutas.get().find(x=>x.id===mId); if(!m) return;
+  const pend=[{m,pend:m.tareas.filter(t=>!t.done)}];
+  const contacts=DB.contacts.get();
+  const to=contacts.filter(c=>c.on&&c.email).map(c=>c.email).join(',');
+  const subj=encodeURIComponent(`RECORDATORIO | ${m.proyecto.toUpperCase()} | Tareas Pendientes`);
+  const body=encodeURIComponent(buildReminderText(pend));
+  window.location.href=`mailto:${to}?subject=${subj}&body=${body}`;
+}
+
+function sendReminderWA(mId){
+  const m=DB.minutas.get().find(x=>x.id===mId); if(!m) return;
+  const pend=[{m,pend:m.tareas.filter(t=>!t.done)}];
+  const contacts=DB.contacts.get();
+  const phones=contacts.filter(c=>c.on&&c.tel);
+  const text=encodeURIComponent(buildReminderText(pend));
+  if(phones.length===1) window.open('https://wa.me/'+phones[0].tel.replace(/\D/g,'')+'?text='+text,'_blank');
+  else window.open('https://wa.me/?text='+text,'_blank');
+}
+
+function sendReminderEmailAll(){
+  const projects=getReminderProjects();
+  if(!projects.length){ alert('Sin tareas pendientes.'); return; }
+  const contacts=DB.contacts.get();
+  const to=contacts.filter(c=>c.on&&c.email).map(c=>c.email).join(',');
+  const subj=encodeURIComponent('RECORDATORIO SEMANAL | Tareas Pendientes');
+  const body=encodeURIComponent(buildReminderText(projects));
+  window.location.href=`mailto:${to}?subject=${subj}&body=${body}`;
+}
+
+function sendReminderWAAll(){
+  const projects=getReminderProjects();
+  if(!projects.length){ alert('Sin tareas pendientes.'); return; }
+  const contacts=DB.contacts.get();
+  const phones=contacts.filter(c=>c.on&&c.tel);
+  const text=encodeURIComponent(buildReminderText(projects));
+  if(phones.length===1) window.open('https://wa.me/'+phones[0].tel.replace(/\D/g,'')+'?text='+text,'_blank');
+  else window.open('https://wa.me/?text='+text,'_blank');
+}
+
+async function scheduleReminderNotif(){
+  if(!('Notification' in window)){
+    alert('Tu navegador no soporta notificaciones. Usá Chrome en Android para esta función.'); return;
+  }
+  const perm=await Notification.requestPermission();
+  if(perm!=='granted'){
+    alert('Permisos denegados. Habilitá las notificaciones en Configuración → tu navegador.'); return;
+  }
+  sv('aa:notif-enabled',true);
+  render();
+  alert('✓ Activado. Cada vez que abras la app un martes, recibirás la notificación de recordatorio.');
+}
+
+function checkScheduledReminder(){
+  if(!ld('aa:notif-enabled',false)) return;
+  if(Notification.permission!=='granted') return;
+  const now=new Date();
+  if(now.getDay()!==2) return; // 2 = martes
+  const today=now.toDateString();
+  if(ld('aa:last-notif','')===today) return;
+  sv('aa:last-notif',today);
+  const projects=getReminderProjects();
+  if(!projects.length) return;
+  const total=projects.reduce((s,p)=>s+p.pend.length,0);
+  new Notification('APP MINUTAS — Recordatorio semanal',{
+    body:`${total} tarea${total!==1?'s':''} pendiente${total!==1?'s':''} para enviar al equipo hoy.`,
+    icon:'icon.svg'
+  });
+}
+
+/* ══════════════════════════════════════════
    INIT
 ══════════════════════════════════════════ */
 render();
+checkScheduledReminder();
 
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
