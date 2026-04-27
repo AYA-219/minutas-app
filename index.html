@@ -222,11 +222,38 @@ function parseOCR(raw) {
   const RESP_RE = /\b([A-ZÁÉÍÓÚÑ]{2,5})\s*$/u;
 
   function detectCb(line) {
-    if (/^[■●▪#@]\s*/.test(line))         return {ok:true,done:true,  c:line.replace(/^[■●▪#@]\s*/,'').trim()};
-    if (/^\[[Xx✓✔]\]\s*/.test(line))       return {ok:true,done:true,  c:line.replace(/^\[[Xx✓✔]\]\s*/,'').trim()};
-    if (/^[□○◻☐0]\s+[A-Z]/.test(line))    return {ok:true,done:false, c:line.replace(/^[□○◻☐0]\s*/,'').trim()};
-    if (/^[□○◻☐]\s*/.test(line))          return {ok:true,done:false, c:line.replace(/^[□○◻☐]\s*/,'').trim()};
-    if (/^\[\s*\]\s*/.test(line))          return {ok:true,done:false, c:line.replace(/^\[\s*\]\s*/,'').trim()};
+    // ── Checkbox explícito: pintado (ejecutado)
+    if (/^[■●▪▸#@\*•]\s*/u.test(line))
+      return {ok:true,done:true,  c:line.replace(/^[■●▪▸#@\*•]\s*/u,'').trim()};
+    if (/^\[[Xx✓✔]\]\s*/.test(line))
+      return {ok:true,done:true,  c:line.replace(/^\[[Xx✓✔]\]\s*/,'').trim()};
+
+    // ── Checkbox explícito: vacío (pendiente)
+    if (/^[□○◻☐]\s*/u.test(line))
+      return {ok:true,done:false, c:line.replace(/^[□○◻☐]\s*/u,'').trim()};
+    if (/^\[\s*\]\s*/.test(line))
+      return {ok:true,done:false, c:line.replace(/^\[\s*\]\s*/,'').trim()};
+
+    // ── Fallback inteligente: OCR no reconoció el checkbox
+    // Detectar por patrón de contenido: línea con responsable + (fecha o dos puntos)
+    // Ej: "CALZEROS PARA 2C: indicar requisitos – 15/05 – MEL"
+    const hasResp = RESP_RE.test(line);
+    const hasDate = DATE_RE.test(line);
+    const hasColon = line.includes(':');
+    const startsUpper = /^[A-ZÁÉÍÓÚÑ\s]{4,}/u.test(line);
+    const shortPrefix = /^[A-Za-z0-9]{1,3}\s+[A-ZÁÉÍÓÚÑ]/.test(line); // "B CALZEROS..." → B es el checkbox mal leído
+
+    // Quitar posible prefijo basura (1-3 chars) que sea el checkbox mal interpretado
+    let content = line;
+    if (shortPrefix) content = line.replace(/^[A-Za-z0-9]{1,3}\s+/, '').trim();
+
+    if (hasResp && hasDate)
+      return {ok:true, done:false, c:content};
+    if (hasResp && hasColon && startsUpper)
+      return {ok:true, done:false, c:content};
+    if (hasResp && hasColon && shortPrefix)
+      return {ok:true, done:false, c:content};
+
     return {ok:false};
   }
 
